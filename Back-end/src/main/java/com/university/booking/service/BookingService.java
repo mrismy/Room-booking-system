@@ -39,6 +39,32 @@ public class BookingService {
         return bookingRepository.save(booking);
     }
 
+    public Booking updateBooking(Long id, Booking bookingDetails) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
+
+        // Validate room exists
+        Room room = roomRepository.findById(bookingDetails.getRoom().getId())
+                .orElseThrow(() -> new RuntimeException("Room not found"));
+        
+        // Check availability (exclude current booking)
+        List<Booking> overlappingBookings = bookingRepository.findByRoomIdAndEndTimeAfterAndStartTimeBefore(
+                room.getId(), bookingDetails.getStartTime(), bookingDetails.getEndTime());
+        
+        overlappingBookings.removeIf(b -> b.getId().equals(id));
+        
+        if (!overlappingBookings.isEmpty()) {
+            throw new RuntimeException("Room is already booked for the selected time slot.");
+        }
+
+        booking.setRoom(room);
+        booking.setStartTime(bookingDetails.getStartTime());
+        booking.setEndTime(bookingDetails.getEndTime());
+        booking.setBookedBy(bookingDetails.getBookedBy());
+
+        return bookingRepository.save(booking);
+    }
+
     public Booking deleteBooking(Long id) {
         if (!bookingRepository.existsById(id)) {
             throw new RuntimeException("Booking not found");
