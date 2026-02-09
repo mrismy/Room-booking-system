@@ -30,6 +30,16 @@ public class BookingController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateBooking(@PathVariable Long id, @RequestBody Booking bookingDetails) {
+        try {
+            Booking updatedBooking = bookingService.updateBooking(id, bookingDetails);
+            return ResponseEntity.ok(updatedBooking);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Booking> deleteBooking(@PathVariable Long id) {
         try {

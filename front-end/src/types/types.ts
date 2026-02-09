@@ -6,6 +6,13 @@ export interface Room {
 
 export interface Booking {
   id?: number;
+  room: Room;
+  startTime: string;
+  endTime: string;
+  bookedBy?: string;
+}
+
+export interface BookingRequest {
   roomId: number;
   date: string;
   startTime: string;
