@@ -2,9 +2,13 @@ package com.university.booking.service;
 
 import com.university.booking.entity.Booking;
 import com.university.booking.entity.Room;
+import com.university.booking.event.BookingCreatedEvent;
 import com.university.booking.repository.BookingRepository;
 import com.university.booking.repository.RoomRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,11 +16,16 @@ import java.util.List;
 @Service
 public class BookingService {
 
+    private static final Logger logger = LoggerFactory.getLogger(BookingService.class);
+
     @Autowired
     private BookingRepository bookingRepository;
 
     @Autowired
     private RoomRepository roomRepository;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     public List<Booking> getAllBookings() {
         return bookingRepository.findAll();
@@ -36,7 +45,30 @@ public class BookingService {
             throw new RuntimeException("Room is already booked for the selected time slot.");
         }
 
-        return bookingRepository.save(booking);
+        // Step 1: Database operation completes successfully
+        Booking savedBooking = bookingRepository.save(booking);
+        logger.info("========== EVENT PRODUCER ==========");
+        logger.info("[Producer] Thread: {} | Booking saved successfully (ID: {})",
+                Thread.currentThread().getName(), savedBooking.getId());
+
+        // Step 2: Publish domain event AFTER DB commit
+        BookingCreatedEvent event = new BookingCreatedEvent(
+                savedBooking.getId(),
+                room.getName(),
+                savedBooking.getBookedBy(),
+                savedBooking.getStartTime(),
+                savedBooking.getEndTime()
+        );
+        eventPublisher.publishEvent(event);
+        logger.info("[Producer] Thread: {} | BookingCreatedEvent published to Event Bus",
+                Thread.currentThread().getName());
+
+        // Step 3: API returns response immediately without waiting for consumer
+        logger.info("[Producer] Thread: {} | Returning API response to client NOW (consumer processes async)",
+                Thread.currentThread().getName());
+        logger.info("========== PRODUCER COMPLETE ==========");
+
+        return savedBooking;
     }
 
     public Booking updateBooking(Long id, Booking bookingDetails) {
